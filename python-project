@@ -1,0 +1,130 @@
+#import libraries
+import pandas as pd
+import numpy as np
+import seaborn as sns
+import matplotlib.pyplot as plt
+from matplotlib import rc
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import classification_report, confusion_matrix
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.preprocessing import LabelEncoder
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score
+from sklearn.linear_model import LogisticRegression
+from sklearn import metrics
+from sklearn.preprocessing import StandardScaler as sc
+from sklearn.tree import export_graphviz
+
+#import data
+HRTrainingData =pd.read_csv('C:\\Users\\Public\\Desktop\\DAT-430\\HR Training Data.csv')
+HRdf1 =pd.read_csv('C:\\Users\\Public\\Desktop\\DAT-430\\HRData (1).csv')
+HRdf2 =pd.read_csv('C:\\Users\\Public\\Desktop\\DAT-430\\HRData (2).csv')
+HRdf3 =pd.read_csv('C:\\Users\\Public\\Desktop\\DAT-430\\HRData (3).csv')
+HRdf4 =pd.read_csv('C:\\Users\\Public\\Desktop\\DAT-430\\HRData (4).csv')
+HRdf5 =pd.read_csv('C:\\Users\\Public\\Desktop\\DAT-430\\HRData (5).csv')
+HRdf6 =pd.read_csv('C:\\Users\\Public\\Desktop\\DAT-430\\HRData (6).csv')
+HRdf7 =pd.read_csv('C:\\Users\\Public\\Desktop\\DAT-430\\HRData (7).csv')
+HRdf8 =pd.read_csv('C:\\Users\\Public\\Desktop\\DAT-430\\HRData (8).csv')
+HRdf9 =pd.read_csv('C:\\Users\\Public\\Desktop\\DAT-430\\HRData (9).csv')
+HRdf10 =pd.read_csv('C:\\Users\\Public\\Desktop\\DAT-430\\HRData (10).csv')
+HRdf11 =pd.read_csv('C:\\Users\\Public\\Desktop\\DAT-430\\HRData (11).csv')
+HRdf12 =pd.read_csv('C:\\Users\\Public\\Desktop\\DAT-430\\HRData (12).csv')
+HRdf13 =pd.read_csv('C:\\Users\\Public\\Desktop\\DAT-430\\HRData (13).csv')
+HRdf14 =pd.read_csv('C:\\Users\\Public\\Desktop\\DAT-430\\HRData (14).csv')
+
+#merge data
+hrdf = pd.concat([HRTrainingData, HRdf1, HRdf2, HRdf3, HRdf4, HRdf5, HRdf6, HRdf7, HRdf8, HRdf9, HRdf10, HRdf11, HRdf12, HRdf13, HRdf14], ignore_index=True, sort=False)
+
+#catagorize columns
+num_vars = hrdf.columns[hrdf.dtypes != "object"]
+cat_vars = hrdf.columns[hrdf.dtypes == 'object']
+#replace numeric nulls with mean of column
+hrdf.fillna(hrdf.mean(), inplace = True)
+
+#drop remaining null values
+hrdf = hrdf.dropna()
+
+#drop unneeded columns
+hrdf.drop(['Over18', 'StandardHours', 'MaritalStatus', 'RelationshipSatisfaction', 'MonthlyRate', 'MonthlyIncome', 'EmployeeNumber', 'Education'], axis = 1, inplace = True)
+
+#replace values to match others
+hrdf['Gender'].replace('F', 'Female', inplace=True)
+hrdf['Gender'].replace('M', 'Male', inplace=True)
+
+#convert all values to numeric
+hrdf = pd.get_dummies(hrdf)
+
+#drop unneeded columns
+hrdf.drop(['Attrition_No', 'EmployeeCount'], axis = 1, inplace = True)
+
+#plot correlation heatmap
+plt.figure(figsize = (35, 35))
+sns.heatmap(hrdf.corr(), annot=True)
+
+#begin logistic regression model
+X = hrdf[['JobSatisfaction', 'training', 'PerformanceRating']]
+y = hrdf['Attrition_Yes']
+
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.3, random_state = 0)
+
+log_regression = LogisticRegression()
+
+log_regression.fit(X_train, y_train)
+
+y_pred = log_regression.predict(X_test)
+
+cm = confusion_matrix(y, log_regression.predict(X))
+print(cm)
+print('Accuracy:', round(metrics.accuracy_score(y_test, y_pred) * 100, 2))
+log_regression.score(X, y)
+
+#plot ROC AUC logistic regression
+y_proba = log_regression.predict_proba(X_test)[::,1]
+fpr, tpr, _ = metrics.roc_curve(y_test, y_proba)
+auc = metrics.roc_auc_score(y_test, y_proba)
+plt.plot(fpr,tpr,label="AUC="+str(auc))
+plt.legend(loc=4)
+plt.show()
+
+#begin random forest model
+forest = RandomForestClassifier(n_estimators = 500, random_state = 20)
+
+x = hrdf.drop(['Attrition_Yes'], axis = 1)
+y = hrdf['Attrition_Yes']
+
+x_train, x_test, y_train, y_test = train_test_split(x, y, test_size = 0.3, random_state = 20)
+
+forest.fit(x_train, y_train)
+
+forest.score(x_train, y_train)
+pred = forest.predict(x_test)
+
+accuracy_score(y_test, pred)
+
+cm = confusion_matrix(y_test, pred) 
+
+TN = cm[0][0]
+TP = cm[1][1]
+FN = cm[1][0]
+FP = cm[0][1]
+
+print(cm)
+print("Accuracy = {}".format( (TP+TN) / (TP + TN + FN + FP)))
+
+#print confusion matrix
+labels = ['TN', 'FP', 'FN', 'TP']
+labels = np.asarray(labels).reshape(2,2)
+sns.heatmap(cm/np.sum(cm), annot=True, fmt='.2%', cmap='Blues')
+
+#create feature importance bar graph
+importance = forest.feature_importances_
+
+for i,v in enumerate(importance):
+    print('Feature: %0d, Score: %.5f' % (i,v))
+    plt.figure(figsize = (20, 20))
+    plt.bar([x for x in range(len(importance))], importance)
+    plt.xlabel("Feature")
+    plt.ylabel('Importance')
+    plt.show()
